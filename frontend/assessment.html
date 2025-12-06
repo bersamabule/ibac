@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assessment - IB Assessment Companion</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">IB Assessment Companion</a>
+            <ul class="navbar-nav">
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/students.html">Students</a></li>
+                <li><a href="/assignments.html">Assignments</a></li>
+                <li><a href="/submissions.html">Submissions</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div id="alerts"></div>
+
+        <a href="/submissions.html" class="back-link">&larr; Back to Submissions</a>
+
+        <!-- Loading State -->
+        <div id="loading-state" class="card">
+            <div class="loading">
+                <div class="spinner"></div>
+                <span>Loading assessment...</span>
+            </div>
+        </div>
+
+        <!-- Assessment Content (hidden until loaded) -->
+        <div id="assessment-content" style="display: none;">
+
+            <!-- Header Section -->
+            <div class="card">
+                <div class="assessment-header">
+                    <div class="assessment-header-info">
+                        <h1 id="student-name">Student Name</h1>
+                        <p id="assignment-title">Assignment Title</p>
+                        <p id="assessment-meta" class="text-muted">Generated on: --</p>
+                    </div>
+                    <div class="assessment-header-actions">
+                        <span id="status-badge" class="status-badge status-draft">DRAFT</span>
+                        <button id="finalize-btn" class="btn btn-success" onclick="finalizeAssessment()">
+                            Finalize Assessment
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Criteria & Levels Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Criteria Assessed</h2>
+                </div>
+                <div id="criteria-levels-container" class="criteria-levels-grid">
+                    <!-- Criterion level cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Profile Detection Section (NEW v2) -->
+            <div class="card" id="profile-detection-card" style="display: none;">
+                <div class="card-header">
+                    <h2 class="card-title">Detected Student Profile</h2>
+                </div>
+                <div class="profile-detection-content" style="padding: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        <div id="profile-name" style="font-size: 1.25rem; font-weight: 600; color: #2563eb;">--</div>
+                        <span id="profile-confidence" class="status-badge" style="font-size: 0.75rem;">--</span>
+                    </div>
+                    <p id="profile-reasoning" style="color: #4b5563; margin-bottom: 1rem;">--</p>
+                    <div id="instructional-priority-box" style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 0.75rem 1rem; border-radius: 0.25rem; display: none;">
+                        <strong style="color: #92400e;">Instructional Priority:</strong>
+                        <span id="instructional-priority" style="color: #78350f;">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Assessment Summary</h2>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <h3>Overall Summary</h3>
+                        <p id="overall-summary">--</p>
+                    </div>
+
+                    <div class="summary-item">
+                        <h3>Student Archetype</h3>
+                        <div class="archetype-card">
+                            <div id="archetype-name" class="archetype-name">--</div>
+                            <div id="archetype-notes" class="archetype-notes">--</div>
+                        </div>
+                    </div>
+
+                    <div class="summary-item">
+                        <h3>Identified Strengths</h3>
+                        <ul id="strengths-list" class="bullet-list">
+                            <li>Loading...</li>
+                        </ul>
+                    </div>
+
+                    <div class="summary-item">
+                        <h3>Areas for Growth</h3>
+                        <ul id="growth-list" class="bullet-list">
+                            <li>Loading...</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Teacher Notes Section -->
+                <div class="annotation-section mt-2">
+                    <h4>Teacher Notes</h4>
+                    <textarea id="teacher-notes" class="annotation-textarea"
+                              placeholder="Add your overall notes about this assessment..."></textarea>
+                    <button class="btn btn-primary btn-sm" onclick="saveTeacherNotes()">Save Notes</button>
+                </div>
+            </div>
+
+            <!-- Criterion Scores Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">Criterion Scores</h2>
+                </div>
+                <div id="criterion-scores-container">
+                    <!-- Criterion cards will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Original Submission Section -->
+            <div class="card">
+                <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                    <h3>Original Submission</h3>
+                    <span class="collapsible-icon">&#9660;</span>
+                </div>
+                <div class="collapsible-content">
+                    <p class="text-muted mb-1">
+                        Word Count: <strong id="word-count">--</strong>
+                    </p>
+                    <div id="submission-text" class="text-full">
+                        Loading...
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '/api';
+        let currentAssessment = null;
+
+        // Get assessment ID from URL
+        function getAssessmentId() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        // Format date for display
+        function formatDateTime(dateString) {
+            if (!dateString) return '--';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Parse semicolon-separated list to bullet points
+        function parseBulletList(text) {
+            if (!text) return ['No data available'];
+            return text.split(';').map(item => item.trim()).filter(item => item.length > 0);
+        }
+
+        // Get level class for color coding
+        function getLevelClass(level) {
+            if (level <= 2) return 'level-1-2';
+            if (level <= 4) return 'level-3-4';
+            if (level <= 6) return 'level-5-6';
+            return 'level-7-8';
+        }
+
+        // Get performance class for strand scores
+        function getPerformanceClass(performance) {
+            const perfLower = (performance || '').toLowerCase();
+            if (perfLower === 'limited') return 'performance-limited';
+            if (perfLower === 'adequate') return 'performance-adequate';
+            if (perfLower === 'substantial') return 'performance-substantial';
+            if (perfLower === 'excellent') return 'performance-excellent';
+            return 'performance-na';
+        }
+
+        // Get criterion name
+        function getCriterionName(letter) {
+            const names = {
+                'A': 'Analysing',
+                'B': 'Organizing',
+                'C': 'Producing Text',
+                'D': 'Using Language'
+            };
+            return names[letter] || letter;
+        }
+
+        // Show alert message
+        function showAlert(message, type = 'success') {
+            const alertsContainer = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alertsContainer.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        // Toggle collapsible sections
+        function toggleCollapsible(header) {
+            header.classList.toggle('active');
+            const content = header.nextElementSibling;
+            content.classList.toggle('active');
+        }
+
+        // Load assessment data
+        async function loadAssessment() {
+            const assessmentId = getAssessmentId();
+            if (!assessmentId) {
+                showAlert('No assessment ID provided', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/assessments/${assessmentId}`);
+                if (!response.ok) {
+                    throw new Error('Assessment not found');
+                }
+
+                currentAssessment = await response.json();
+                renderAssessment(currentAssessment);
+
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('assessment-content').style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading assessment:', error);
+                showAlert('Failed to load assessment: ' + error.message, 'error');
+            }
+        }
+
+        // Render assessment data
+        function renderAssessment(data) {
+            // Header
+            const studentName = data.student
+                ? `${data.student.first_name} ${data.student.last_name}`
+                : 'Unknown Student';
+            document.getElementById('student-name').textContent = studentName;
+            document.getElementById('assignment-title').textContent =
+                data.assignment?.title || 'Unknown Assignment';
+            document.getElementById('assessment-meta').textContent =
+                `Generated on: ${formatDateTime(data.created_at)} | Source: ${data.source}`;
+
+            // Status badge
+            const statusBadge = document.getElementById('status-badge');
+            statusBadge.textContent = data.status;
+            statusBadge.className = `status-badge status-${data.status.toLowerCase()}`;
+
+            // Finalize button
+            const finalizeBtn = document.getElementById('finalize-btn');
+            if (data.status === 'FINALIZED') {
+                finalizeBtn.disabled = true;
+                finalizeBtn.textContent = 'Finalized';
+            }
+
+            // Summary
+            document.getElementById('overall-summary').textContent =
+                data.overall_summary || 'No summary available';
+
+            // Archetype
+            document.getElementById('archetype-name').textContent =
+                data.archetype_primary || 'Not classified';
+            document.getElementById('archetype-notes').textContent =
+                data.archetype_notes || '';
+
+            // Strengths
+            const strengthsList = document.getElementById('strengths-list');
+            const strengths = parseBulletList(data.identified_strengths);
+            strengthsList.innerHTML = strengths.map(s => `<li>${escapeHtml(s)}</li>`).join('');
+
+            // Growth areas
+            const growthList = document.getElementById('growth-list');
+            const growthAreas = parseBulletList(data.growth_areas);
+            growthList.innerHTML = growthAreas.map(g => `<li>${escapeHtml(g)}</li>`).join('');
+
+            // Teacher notes
+            document.getElementById('teacher-notes').value = data.teacher_notes || '';
+
+            // Profile Detection (NEW v2)
+            renderProfileDetection(data.profile_detection, data.instructional_priority);
+
+            // Criteria levels (prominent display)
+            renderCriteriaLevels(data.criterion_scores || []);
+
+            // Criterion scores (detailed)
+            renderCriterionScores(data.criterion_scores || []);
+
+            // Original submission
+            if (data.submission) {
+                document.getElementById('word-count').textContent = data.submission.word_count;
+                document.getElementById('submission-text').textContent = data.submission.submitted_text;
+            }
+        }
+
+        // Get level band description
+        function getLevelBand(level) {
+            if (level <= 2) return '1-2';
+            if (level <= 4) return '3-4';
+            if (level <= 6) return '5-6';
+            return '7-8';
+        }
+
+        // Get confidence badge class
+        function getConfidenceClass(confidence) {
+            if (confidence === 'high') return 'status-finalized';
+            if (confidence === 'medium') return 'status-reviewed';
+            return 'status-draft';
+        }
+
+        // Render profile detection section (NEW v2)
+        function renderProfileDetection(profileDetection, instructionalPriority) {
+            const card = document.getElementById('profile-detection-card');
+
+            if (!profileDetection || !profileDetection.detected_profile) {
+                card.style.display = 'none';
+                return;
+            }
+
+            card.style.display = 'block';
+
+            // Profile name
+            document.getElementById('profile-name').textContent =
+                profileDetection.detected_profile || 'Not detected';
+
+            // Confidence badge
+            const confidenceBadge = document.getElementById('profile-confidence');
+            const confidence = profileDetection.confidence || 'unknown';
+            confidenceBadge.textContent = confidence.toUpperCase();
+            confidenceBadge.className = `status-badge ${getConfidenceClass(confidence)}`;
+
+            // Reasoning
+            document.getElementById('profile-reasoning').textContent =
+                profileDetection.reasoning || '';
+
+            // Instructional priority
+            const priorityBox = document.getElementById('instructional-priority-box');
+            if (instructionalPriority) {
+                priorityBox.style.display = 'block';
+                document.getElementById('instructional-priority').textContent = instructionalPriority;
+            } else {
+                priorityBox.style.display = 'none';
+            }
+        }
+
+        // Render prominent criteria levels display
+        function renderCriteriaLevels(scores) {
+            const container = document.getElementById('criteria-levels-container');
+
+            if (!scores || scores.length === 0) {
+                container.innerHTML = '<p class="text-muted">No criteria scores available</p>';
+                return;
+            }
+
+            container.innerHTML = scores.map(score => {
+                const levelClass = getLevelClass(score.level);
+                const criterionName = getCriterionName(score.criterion);
+                const levelBand = getLevelBand(score.level);
+
+                return `
+                    <div class="criteria-level-card">
+                        <div class="criteria-level-header">
+                            <span class="level-badge ${levelClass}">${score.level}</span>
+                        </div>
+                        <div class="criteria-level-body">
+                            <div class="criteria-level-name">Criterion ${score.criterion}: ${criterionName}</div>
+                            <div class="criteria-level-band">Level ${levelBand}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render criterion score cards
+        function renderCriterionScores(scores) {
+            const container = document.getElementById('criterion-scores-container');
+
+            if (scores.length === 0) {
+                container.innerHTML = '<p class="text-muted">No criterion scores available</p>';
+                return;
+            }
+
+            container.innerHTML = scores.map(score => {
+                const levelClass = getLevelClass(score.level);
+                const criterionName = getCriterionName(score.criterion);
+
+                // Build comparison analysis section (NEW v2)
+                let comparisonHtml = '';
+                if (score.comparison_analysis) {
+                    const ca = score.comparison_analysis;
+                    comparisonHtml = `
+                        <div class="rationale-section" style="background: #f8fafc; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
+                            <h4 style="color: #1e40af; margin-bottom: 0.75rem;">Calibration Comparison</h4>
+                            ${score.closest_reference ? `
+                                <div style="margin-bottom: 0.75rem; padding: 0.5rem; background: #dbeafe; border-radius: 0.25rem;">
+                                    <strong>Closest Reference Sample:</strong> ${escapeHtml(score.closest_reference)}
+                                </div>
+                            ` : ''}
+                            <div style="display: grid; gap: 0.5rem; font-size: 0.9rem;">
+                                ${ca.vs_level_1_2 ? `
+                                    <div style="border-left: 3px solid #ef4444; padding-left: 0.75rem;">
+                                        <strong style="color: #b91c1c;">vs Level 1-2:</strong>
+                                        <span>${escapeHtml(ca.vs_level_1_2)}</span>
+                                    </div>
+                                ` : ''}
+                                ${ca.vs_level_3_4 ? `
+                                    <div style="border-left: 3px solid #f59e0b; padding-left: 0.75rem;">
+                                        <strong style="color: #b45309;">vs Level 3-4:</strong>
+                                        <span>${escapeHtml(ca.vs_level_3_4)}</span>
+                                    </div>
+                                ` : ''}
+                                ${ca.vs_level_5_6 ? `
+                                    <div style="border-left: 3px solid #10b981; padding-left: 0.75rem;">
+                                        <strong style="color: #047857;">vs Level 5-6:</strong>
+                                        <span>${escapeHtml(ca.vs_level_5_6)}</span>
+                                    </div>
+                                ` : ''}
+                                ${ca.vs_level_7_8 ? `
+                                    <div style="border-left: 3px solid #6366f1; padding-left: 0.75rem;">
+                                        <strong style="color: #4338ca;">vs Level 7-8:</strong>
+                                        <span>${escapeHtml(ca.vs_level_7_8)}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Build strand scores table
+                let strandRows = '';
+                if (score.strand_scores) {
+                    for (const [key, strand] of Object.entries(score.strand_scores)) {
+                        const perfClass = getPerformanceClass(strand.performance);
+                        strandRows += `
+                            <tr>
+                                <td>${escapeHtml(key)}</td>
+                                <td>${escapeHtml(strand.descriptor || '')}</td>
+                                <td class="${perfClass}">${escapeHtml(strand.performance || 'N/A')}</td>
+                                <td>${escapeHtml(strand.notes || '')}</td>
+                            </tr>
+                        `;
+                    }
+                }
+
+                // Build evidence quotes
+                let evidenceHtml = '';
+                if (score.evidence_quotes && score.evidence_quotes.length > 0) {
+                    evidenceHtml = score.evidence_quotes.map(eq => `
+                        <div class="evidence-quote">
+                            <blockquote>"${escapeHtml(eq.quote)}"</blockquote>
+                            <div class="analysis">${escapeHtml(eq.analysis)}</div>
+                        </div>
+                    `).join('');
+                }
+
+                return `
+                    <div class="criterion-card">
+                        <div class="criterion-header">
+                            <span class="level-badge ${levelClass}">${score.level}</span>
+                            <span class="criterion-letter">Criterion ${score.criterion}</span>
+                            <span class="criterion-name">${criterionName}</span>
+                        </div>
+                        <div class="criterion-body">
+                            <div class="rationale-section">
+                                <h4>Level Rationale</h4>
+                                <p class="rationale-text">${escapeHtml(score.level_rationale)}</p>
+                            </div>
+
+                            ${comparisonHtml}
+
+                            ${strandRows ? `
+                            <div class="rationale-section">
+                                <h4>Strand Performance</h4>
+                                <table class="strand-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Strand</th>
+                                            <th>Descriptor</th>
+                                            <th>Performance</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${strandRows}
+                                    </tbody>
+                                </table>
+                            </div>
+                            ` : ''}
+
+                            ${evidenceHtml ? `
+                            <div class="evidence-section">
+                                <h4>Evidence from Student Work</h4>
+                                ${evidenceHtml}
+                            </div>
+                            ` : ''}
+
+                            ${score.diagnostic_notes ? `
+                            <div class="diagnostic-section">
+                                <h4>Diagnostic Notes</h4>
+                                <p>${escapeHtml(score.diagnostic_notes)}</p>
+                            </div>
+                            ` : ''}
+
+                            <div class="annotation-section">
+                                <h4>Teacher Annotation</h4>
+                                <textarea class="annotation-textarea"
+                                          id="annotation-${score.id}"
+                                          placeholder="Add your notes for this criterion...">${escapeHtml(score.teacher_annotation || '')}</textarea>
+                                <button class="btn btn-primary btn-sm"
+                                        onclick="saveAnnotation('${score.id}')">
+                                    Save Annotation
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Save teacher notes
+        async function saveTeacherNotes() {
+            if (!currentAssessment) return;
+
+            const notes = document.getElementById('teacher-notes').value;
+
+            try {
+                const response = await fetch(`${API_BASE}/assessments/${currentAssessment.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        teacher_notes: notes,
+                        status: currentAssessment.status === 'DRAFT' ? 'REVIEWED' : currentAssessment.status
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to save');
+
+                // Update status if changed
+                if (currentAssessment.status === 'DRAFT') {
+                    currentAssessment.status = 'REVIEWED';
+                    const statusBadge = document.getElementById('status-badge');
+                    statusBadge.textContent = 'REVIEWED';
+                    statusBadge.className = 'status-badge status-reviewed';
+                }
+
+                showAlert('Teacher notes saved successfully');
+            } catch (error) {
+                showAlert('Failed to save notes: ' + error.message, 'error');
+            }
+        }
+
+        // Save criterion annotation
+        async function saveAnnotation(scoreId) {
+            const textarea = document.getElementById(`annotation-${scoreId}`);
+            const annotation = textarea.value;
+
+            try {
+                const response = await fetch(`${API_BASE}/criterion-scores/${scoreId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ teacher_annotation: annotation })
+                });
+
+                if (!response.ok) throw new Error('Failed to save');
+
+                // Update assessment status to REVIEWED if it was DRAFT
+                if (currentAssessment.status === 'DRAFT') {
+                    await fetch(`${API_BASE}/assessments/${currentAssessment.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: 'REVIEWED' })
+                    });
+
+                    currentAssessment.status = 'REVIEWED';
+                    const statusBadge = document.getElementById('status-badge');
+                    statusBadge.textContent = 'REVIEWED';
+                    statusBadge.className = 'status-badge status-reviewed';
+                }
+
+                showAlert('Annotation saved successfully');
+            } catch (error) {
+                showAlert('Failed to save annotation: ' + error.message, 'error');
+            }
+        }
+
+        // Finalize assessment
+        async function finalizeAssessment() {
+            if (!currentAssessment) return;
+
+            if (!confirm('Are you sure you want to finalize this assessment? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/assessments/${currentAssessment.id}/finalize`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!response.ok) throw new Error('Failed to finalize');
+
+                const result = await response.json();
+
+                currentAssessment.status = 'FINALIZED';
+                const statusBadge = document.getElementById('status-badge');
+                statusBadge.textContent = 'FINALIZED';
+                statusBadge.className = 'status-badge status-finalized';
+
+                const finalizeBtn = document.getElementById('finalize-btn');
+                finalizeBtn.disabled = true;
+                finalizeBtn.textContent = 'Finalized';
+
+                showAlert('Assessment finalized successfully');
+            } catch (error) {
+                showAlert('Failed to finalize assessment: ' + error.message, 'error');
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', loadAssessment);
+    </script>
+</body>
+</html>

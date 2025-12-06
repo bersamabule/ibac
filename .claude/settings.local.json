@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(curl:*)",
+      "Bash(node --check:*)",
+      "Bash(node -e:*)",
+      "Bash(echo:*)",
+      "Bash(cat:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c \"taskkill /F /IM python.exe\")",
+      "Bash(netstat:*)",
+      "Bash(wmic process where \"name=''''python.exe''''\" get processid,commandline)",
+      "Bash(dir \"C:\\IB_Assessment_App\\IBAC_Calibration_Package\" /s /b)",
+      "Bash(del \"C:\\IB_Assessment_App\\database\\ib_assessment.db\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

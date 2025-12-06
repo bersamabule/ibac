@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submissions - IB Assessment Companion</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">IB Assessment Companion</a>
+            <ul class="navbar-nav">
+                <li><a href="/">Dashboard</a></li>
+                <li><a href="/students.html">Students</a></li>
+                <li><a href="/assignments.html">Assignments</a></li>
+                <li><a href="/submissions.html" class="active">Submissions</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div id="alerts"></div>
+
+        <div class="page-header">
+            <h1 class="page-title">Submissions</h1>
+            <button class="btn btn-success" onclick="openSubmissionForm()">New Submission</button>
+        </div>
+
+        <div class="card">
+            <!-- Filters -->
+            <div class="filters">
+                <div class="filter-group">
+                    <label class="filter-label" for="filter-student">Student:</label>
+                    <select id="filter-student" class="form-control" style="width: auto; min-width: 200px;">
+                        <option value="">All Students</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label class="filter-label" for="filter-assignment">Assignment:</label>
+                    <select id="filter-assignment" class="form-control" style="width: auto; min-width: 200px;">
+                        <option value="">All Assignments</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Submissions Table -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Assignment</th>
+                            <th>Word Count</th>
+                            <th>Submitted</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="submissions-table-body">
+                        <tr>
+                            <td colspan="6" class="loading">
+                                <div class="spinner"></div>
+                                <span>Loading...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- New Submission Modal -->
+    <div id="submission-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">New Submission</h3>
+                <button class="modal-close" onclick="closeModal('submission-modal')">&times;</button>
+            </div>
+            <form id="submission-form" onsubmit="saveSubmission(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label required" for="submission-student">Student</label>
+                        <select id="submission-student" class="form-control" required>
+                            <option value="">Select a student...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required" for="submission-assignment">Assignment</label>
+                        <select id="submission-assignment" class="form-control" required>
+                            <option value="">Select an assignment...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label required" for="submitted-text">Submitted Text</label>
+                        <textarea id="submitted-text" class="form-control" rows="12" required
+                                  placeholder="Paste the student's work here..."></textarea>
+                        <div id="word-count-display" class="word-count">0 words</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('submission-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create Submission</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- View Submission Modal -->
+    <div id="view-submission-modal" class="modal-overlay">
+        <div class="modal" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Submission Details</h3>
+                <button class="modal-close" onclick="closeModal('view-submission-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Student</label>
+                    <p id="view-student-name" class="text-muted"></p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Assignment</label>
+                    <p id="view-assignment-title" class="text-muted"></p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Word Count</label>
+                    <p id="view-word-count" class="text-muted"></p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Submitted</label>
+                    <p id="view-submission-date" class="text-muted"></p>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Submitted Text</label>
+                    <div id="view-submitted-text" class="text-full"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('view-submission-modal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
