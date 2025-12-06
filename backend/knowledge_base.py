@@ -10,13 +10,31 @@ forced-comparison assessment architecture.
 
 import os
 import json
+import logging
 from pathlib import Path
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Knowledge base path - use KNOWLEDGE_BASE (uppercase) as that's the actual folder name
 KNOWLEDGE_BASE_PATH = Path(__file__).parent.parent / "KNOWLEDGE_BASE"
 
 # Calibration package path
 CALIBRATION_PATH = Path(__file__).parent.parent / "IBAC_Calibration_Package"
+
+# Log path information on module load
+logger.info(f"knowledge_base.py __file__: {__file__}")
+logger.info(f"KNOWLEDGE_BASE_PATH: {KNOWLEDGE_BASE_PATH}")
+logger.info(f"KNOWLEDGE_BASE_PATH resolved: {KNOWLEDGE_BASE_PATH.resolve()}")
+logger.info(f"KNOWLEDGE_BASE_PATH exists: {KNOWLEDGE_BASE_PATH.exists()}")
+logger.info(f"CALIBRATION_PATH: {CALIBRATION_PATH}")
+logger.info(f"CALIBRATION_PATH resolved: {CALIBRATION_PATH.resolve()}")
+logger.info(f"CALIBRATION_PATH exists: {CALIBRATION_PATH.exists()}")
+
+# Also print to stdout for Railway logs
+print(f"[knowledge_base] __file__: {__file__}")
+print(f"[knowledge_base] KNOWLEDGE_BASE_PATH: {KNOWLEDGE_BASE_PATH} (exists: {KNOWLEDGE_BASE_PATH.exists()})")
+print(f"[knowledge_base] CALIBRATION_PATH: {CALIBRATION_PATH} (exists: {CALIBRATION_PATH.exists()})")
 
 
 def load_module(relative_path: str) -> str:

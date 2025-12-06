@@ -560,3 +560,98 @@ def seed_database(db: Session = Depends(get_db)):
 def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "version": "1.0.0"}
+
+
+# ============== Debug Endpoints ==============
+
+@app.get("/debug/calibration")
+def debug_calibration():
+    """
+    Debug endpoint to diagnose calibration file loading issues.
+    Reports paths, file existence, and sample content.
+    """
+    from pathlib import Path
+    from .knowledge_base import KNOWLEDGE_BASE_PATH, CALIBRATION_PATH
+
+    result = {
+        "paths": {
+            "knowledge_base_path": str(KNOWLEDGE_BASE_PATH),
+            "knowledge_base_resolved": str(KNOWLEDGE_BASE_PATH.resolve()) if KNOWLEDGE_BASE_PATH else None,
+            "knowledge_base_exists": KNOWLEDGE_BASE_PATH.exists() if KNOWLEDGE_BASE_PATH else False,
+            "calibration_path": str(CALIBRATION_PATH),
+            "calibration_resolved": str(CALIBRATION_PATH.resolve()) if CALIBRATION_PATH else None,
+            "calibration_exists": CALIBRATION_PATH.exists() if CALIBRATION_PATH else False,
+        },
+        "calibration_modules": {
+            "dir_path": None,
+            "dir_exists": False,
+            "files": [],
+            "file_count": 0,
+        },
+        "cross_criteria_profiles": {
+            "file_path": None,
+            "file_exists": False,
+            "content_length": 0,
+        },
+        "sample_content": {
+            "file": None,
+            "first_200_chars": None,
+        },
+        "cwd": os.getcwd(),
+        "__file__": __file__,
+    }
+
+    # Check calibration_modules directory
+    calibration_modules_dir = CALIBRATION_PATH / "calibration_modules"
+    result["calibration_modules"]["dir_path"] = str(calibration_modules_dir)
+    result["calibration_modules"]["dir_exists"] = calibration_modules_dir.exists()
+
+    if calibration_modules_dir.exists():
+        files = list(calibration_modules_dir.iterdir())
+        result["calibration_modules"]["files"] = [f.name for f in files]
+        result["calibration_modules"]["file_count"] = len(files)
+
+        # Try to read first calibration file
+        md_files = [f for f in files if f.suffix == '.md']
+        if md_files:
+            try:
+                sample_file = md_files[0]
+                content = sample_file.read_text(encoding='utf-8')
+                result["sample_content"]["file"] = sample_file.name
+                result["sample_content"]["first_200_chars"] = content[:200]
+            except Exception as e:
+                result["sample_content"]["error"] = str(e)
+
+    # Check cross_criteria_profiles.json
+    profiles_path = CALIBRATION_PATH / "cross_criteria_profiles.json"
+    result["cross_criteria_profiles"]["file_path"] = str(profiles_path)
+    result["cross_criteria_profiles"]["file_exists"] = profiles_path.exists()
+
+    if profiles_path.exists():
+        try:
+            content = profiles_path.read_text(encoding='utf-8')
+            result["cross_criteria_profiles"]["content_length"] = len(content)
+        except Exception as e:
+            result["cross_criteria_profiles"]["error"] = str(e)
+
+    # Test actual loading functions
+    try:
+        from .knowledge_base import load_calibration_anchors, format_cross_criteria_profiles_for_prompt
+
+        anchors = load_calibration_anchors(["A", "B"])
+        result["load_calibration_anchors_result"] = {
+            "length": len(anchors),
+            "first_200_chars": anchors[:200] if anchors else None,
+            "is_empty": len(anchors) == 0,
+        }
+
+        profiles = format_cross_criteria_profiles_for_prompt()
+        result["format_cross_criteria_profiles_result"] = {
+            "length": len(profiles),
+            "first_200_chars": profiles[:200] if profiles else None,
+            "is_empty": len(profiles) == 0,
+        }
+    except Exception as e:
+        result["loading_functions_error"] = str(e)
+
+    return result
