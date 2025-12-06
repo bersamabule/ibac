@@ -64,9 +64,32 @@ def init_db():
         print(f"[database] WARNING: Cannot create directory {DATABASE_DIR}: {e}")
         print("[database] Assuming directory already exists (Railway volume mount)")
 
+    # Check if database file already exists (helps diagnose persistence issues)
+    db_exists = os.path.exists(DATABASE_PATH)
+    print(f"[database] Database file exists BEFORE init: {db_exists}")
+    if db_exists:
+        db_size = os.path.getsize(DATABASE_PATH)
+        print(f"[database] Database file size: {db_size} bytes")
+
+    # List contents of database directory
+    if os.path.exists(DATABASE_DIR):
+        try:
+            contents = os.listdir(DATABASE_DIR)
+            print(f"[database] Directory contents: {contents}")
+        except Exception as e:
+            print(f"[database] Cannot list directory: {e}")
+
     # Import models to register them with Base
     from . import models  # noqa: F401
 
-    # Create all tables
+    # Create all tables (only creates if they don't exist)
     Base.metadata.create_all(bind=engine)
-    print(f"Database initialized at: {DATABASE_PATH}")
+
+    # Verify database after init
+    db_exists_after = os.path.exists(DATABASE_PATH)
+    print(f"[database] Database file exists AFTER init: {db_exists_after}")
+    if db_exists_after:
+        db_size_after = os.path.getsize(DATABASE_PATH)
+        print(f"[database] Database file size after init: {db_size_after} bytes")
+
+    print(f"[database] Initialization complete at: {DATABASE_PATH}")

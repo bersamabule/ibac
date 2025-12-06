@@ -655,3 +655,91 @@ def debug_calibration():
         result["loading_functions_error"] = str(e)
 
     return result
+
+
+@app.get("/debug/database")
+def debug_database(db: Session = Depends(get_db)):
+    """
+    Debug endpoint to diagnose database persistence issues.
+    Reports database file info, table counts, and volume mount status.
+    """
+    from .database import DATABASE_DIR, DATABASE_PATH, IS_RAILWAY
+
+    result = {
+        "environment": {
+            "IS_RAILWAY": IS_RAILWAY,
+            "DATABASE_DIR": DATABASE_DIR,
+            "DATABASE_PATH": DATABASE_PATH,
+            "cwd": os.getcwd(),
+        },
+        "file_system": {
+            "database_dir_exists": os.path.exists(DATABASE_DIR),
+            "database_file_exists": os.path.exists(DATABASE_PATH),
+            "database_file_size": None,
+            "directory_contents": [],
+            "directory_writable": False,
+        },
+        "database_contents": {
+            "students_count": 0,
+            "assignments_count": 0,
+            "submissions_count": 0,
+            "assessments_count": 0,
+        },
+        "volume_mount_test": {
+            "test_file_created": False,
+            "test_file_read_back": False,
+            "error": None,
+        }
+    }
+
+    # Check file system
+    if os.path.exists(DATABASE_PATH):
+        result["file_system"]["database_file_size"] = os.path.getsize(DATABASE_PATH)
+
+    if os.path.exists(DATABASE_DIR):
+        try:
+            result["file_system"]["directory_contents"] = os.listdir(DATABASE_DIR)
+        except Exception as e:
+            result["file_system"]["directory_contents_error"] = str(e)
+
+        # Test if directory is writable
+        try:
+            test_file = os.path.join(DATABASE_DIR, ".write_test")
+            with open(test_file, 'w') as f:
+                f.write("test")
+            result["file_system"]["directory_writable"] = True
+            os.remove(test_file)
+        except Exception as e:
+            result["file_system"]["directory_writable"] = False
+            result["file_system"]["write_error"] = str(e)
+
+    # Count records in database
+    try:
+        from . import models
+        result["database_contents"]["students_count"] = db.query(models.Student).count()
+        result["database_contents"]["assignments_count"] = db.query(models.Assignment).count()
+        result["database_contents"]["submissions_count"] = db.query(models.Submission).count()
+        result["database_contents"]["assessments_count"] = db.query(models.Assessment).count()
+    except Exception as e:
+        result["database_contents"]["error"] = str(e)
+
+    # Test volume persistence with a marker file
+    if IS_RAILWAY:
+        marker_file = os.path.join(DATABASE_DIR, ".persistence_marker")
+        try:
+            if os.path.exists(marker_file):
+                with open(marker_file, 'r') as f:
+                    content = f.read()
+                result["volume_mount_test"]["marker_exists"] = True
+                result["volume_mount_test"]["marker_content"] = content
+            else:
+                # Create marker for next deployment
+                from datetime import datetime
+                with open(marker_file, 'w') as f:
+                    f.write(f"Created at: {datetime.utcnow().isoformat()}")
+                result["volume_mount_test"]["marker_created"] = True
+                result["volume_mount_test"]["message"] = "Marker file created. Check after next deployment to verify persistence."
+        except Exception as e:
+            result["volume_mount_test"]["error"] = str(e)
+
+    return result
